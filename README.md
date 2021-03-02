@@ -1,2 +1,2 @@
 # UntitledTerminalEmulator
-The abstraction responsible for handling commands in the terminal emulator
+The layer of abstraction responsible for handling commands in the terminal emulator
