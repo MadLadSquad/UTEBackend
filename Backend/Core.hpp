@@ -6,3 +6,5 @@
 #include <functional>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fcntl.h>
+#include <pty.h>
