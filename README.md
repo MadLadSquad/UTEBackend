@@ -1,2 +1,2 @@
 # UntitledTerminalEmulator
-Like the UntitledVulkanTerminalEmulator but without the Vulkan part
+The layer of abstraction responsible for handling commands in the terminal emulator
