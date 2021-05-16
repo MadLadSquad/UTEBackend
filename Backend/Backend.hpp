@@ -1,26 +1,25 @@
 #pragma once
 #include "Core.hpp"
 
-enum PROCESS_TYPE
-{
-    PARENT,
-    CHILD
-};
+static void ttyReset();
+
+inline termios ttyOrig{};
 
 class Comms
 {
 public:
-    Comms()
+    Comms(int argc, char** argv);
+
+    std::string& getBuffer()
     {
-
+        return buffer;
     }
-
-    [[maybe_unused]] void executeFunction(PROCESS_TYPE type, std::function<void(void)> func);
-
-
 private:
-    int p1[2];
-    int p2[2];
+    static int ttySetRaw(int fd, struct termios *prevTermios);
+    static int ptyMasterOpen(char* slaveName, size_t snLen);
+    static pid_t ptyFork(int *masterFd, char *slaveName, size_t snLen, const struct termios *slaveTermios, const struct winsize *slaveWS);
+
+    std::string buffer;
 };
 
 
