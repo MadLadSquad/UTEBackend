@@ -1,6 +1,6 @@
 #include "Backend.hpp"
 
-pid_t Comms::ptyFork(int* masterFd, char* slaveName, size_t snLen, const struct termios* slaveTermios, const struct winsize* slaveWS)
+pid_t UnixBackend::ptyFork(int* masterFd, char* slaveName, size_t snLen, const struct termios* slaveTermios, const struct winsize* slaveWS)
 {
     int mfd, slaveFd, savedErrno;
     pid_t childPid;
@@ -66,7 +66,7 @@ pid_t Comms::ptyFork(int* masterFd, char* slaveName, size_t snLen, const struct 
     return 0;
 }
 
-int Comms::ptyMasterOpen(char* slaveName, size_t snLen)
+int UnixBackend::ptyMasterOpen(char* slaveName, size_t snLen)
 {
     int masterFd, savedErrno;
     char* p;
@@ -114,7 +114,7 @@ int Comms::ptyMasterOpen(char* slaveName, size_t snLen)
     return masterFd;
 }
 
-int Comms::ttySetRaw(int fd, struct termios *prevTermios)
+int UnixBackend::ttySetRaw(int fd, struct termios *prevTermios)
 {
     struct termios t{};
 
@@ -139,17 +139,35 @@ void ttyReset()
     tcsetattr(STDIN_FILENO, TCSANOW, &ttyOrig);
 }
 
-Comms::Comms(int argc, char** argv)
+void UnixBackend::update()
 {
-    char slaveName[1000];
-    char *shell;
-    int masterFd, scriptFd;
-    struct winsize ws{};
-    fd_set inFds;
-    char buf[256];
-    ssize_t numRead;
-    pid_t childPid;
+    FD_ZERO(&inFds);
+    FD_SET(STDIN_FILENO, &inFds);
+    FD_SET(masterFd, &inFds);
 
+    select(masterFd + 1, &inFds, nullptr, nullptr, nullptr);
+
+    if (FD_ISSET(STDIN_FILENO, &inFds))
+    {
+        numRead = read(STDIN_FILENO, buf, 256);
+        if (numRead <= 0)
+            exit(EXIT_SUCCESS);
+
+        write(masterFd, buf, numRead);
+    }
+
+    if (FD_ISSET(masterFd, &inFds))
+    {
+        numRead = read(masterFd, buf, 256);
+        if (numRead <= 0)
+            exit(EXIT_SUCCESS);
+
+        buffer.append(buf, numRead);
+    }
+}
+
+void UnixBackend::init()
+{
     tcgetattr(STDIN_FILENO, &ttyOrig);
     ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
 
@@ -166,35 +184,10 @@ Comms::Comms(int argc, char** argv)
 
     ttySetRaw(STDIN_FILENO, &ttyOrig);
     std::atexit(ttyReset);
+}
 
-    for (;;) {
-        FD_ZERO(&inFds);
-        FD_SET(STDIN_FILENO, &inFds);
-        FD_SET(masterFd, &inFds);
-
-        select(masterFd + 1, &inFds, nullptr, nullptr, nullptr);
-
-        if (FD_ISSET(STDIN_FILENO, &inFds))
-        {
-            numRead = read(STDIN_FILENO, buf, 256);
-            if (numRead <= 0)
-                exit(EXIT_SUCCESS);
-
-            // Writes shell and command
-            write(masterFd, buf, numRead);
-        }
-
-        if (FD_ISSET(masterFd, &inFds))
-        {
-            numRead = read(masterFd, buf, 256);
-            if (numRead <= 0)
-                exit(EXIT_SUCCESS);
-
-            // writes shell
-            //write(STDOUT_FILENO, buf, numRead);
-            buffer.append(buf, numRead);
-
-            //std::cout << buffer << std::flush;
-        }
-    }
+void UnixBackend::cleanup() const
+{
+    write(STDIN_FILENO, "exit", 4);
+    close(masterFd);
 }

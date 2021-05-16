@@ -8,7 +8,7 @@
 #include <cstdarg>
 #include <cerrno>
 #include <cstring>
-
+#include <fstream>
 #ifndef _WIN32
     #ifdef __APPLE__
         #include <util.h>
