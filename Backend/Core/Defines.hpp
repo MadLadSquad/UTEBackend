@@ -20,3 +20,5 @@ static int posix_openpt(int flags)
 #if ! defined(__hpux)
     #include <sys/select.h>
 #endif
+
+#define MAX_SCROLL_BUFFER_SIZE 15000000

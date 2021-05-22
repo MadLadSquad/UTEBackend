@@ -57,12 +57,13 @@ pid_t UTE::UnixBackend::ptyFork(int* masterFd, char* slaveName, size_t snLen, co
     {
         ioctl(slavefd, TIOCSWINSZ, slaveWS);
     }
-
     dup2(slavefd, STDIN_FILENO);
     dup2(slavefd, STDOUT_FILENO);
     dup2(slavefd, STDERR_FILENO);
 
     if (slavefd > STDERR_FILENO) close(slavefd);
+
+
 
     return 0;
 }
@@ -136,7 +137,7 @@ int UTE::UnixBackend::ttySetRaw(int fd, struct termios *prevTermios)
     return 0;
 }
 
-void UTE::ttyReset()
+void UTE::UnixBackend::ttyReset()
 {
     tcsetattr(STDIN_FILENO, TCSANOW, &ttyOrig);
 }
@@ -166,6 +167,8 @@ void UTE::UnixBackend::update()
 
         buffer.append(buf, numRead);
     }
+
+    if (buffer.size() > MAX_SCROLL_BUFFER_SIZE) buffer.erase(0, buffer.size() - MAX_SCROLL_BUFFER_SIZE);
 }
 
 void UTE::UnixBackend::init()
@@ -185,12 +188,19 @@ void UTE::UnixBackend::init()
     }
 
     ttySetRaw(STDIN_FILENO, &ttyOrig);
-    std::atexit(ttyReset);
 }
 
 void UTE::UnixBackend::cleanup()
 {
-    error = write(STDIN_FILENO, "exit", 4);
+    error = write(masterFd, "exit \n", 7);
     close(masterFd);
+    exit(EXIT_SUCCESS);
+}
+
+void UTE::UnixBackend::sendCommand(std::string& command)
+{
+    command.append("\n");
+    error = write(masterFd, command.c_str(), command.size());
+    command.clear();
 }
 #endif
